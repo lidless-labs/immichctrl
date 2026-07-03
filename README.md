@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/immichctrl-banner.jpg" alt="immichctrl banner" width="900">
+  <img src="docs/assets/immichctrl-social-preview.jpg" alt="immichctrl banner" width="900">
 </p>
 
 <h1 align="center">immichctrl</h1>
@@ -15,8 +15,8 @@
 </p>
 
 <p align="center">
-  <img src="https://shieldcn.dev/npm/immich-mcp.svg" alt="npm version">
   <img src="https://shieldcn.dev/github/ci/lidless-labs/immichctrl.svg?branch=master&workflow=ci.yml" alt="CI status">
+  <img src="https://shieldcn.dev/npm/immich-mcp.svg" alt="npm version">
   <img src="https://shieldcn.dev/badge/MCP-compatible-8A2BE2.svg" alt="MCP compatible">
   <img src="https://shieldcn.dev/badge/license-MIT-green.svg" alt="MIT License">
 </p>
