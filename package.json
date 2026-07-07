@@ -1,14 +1,14 @@
 {
   "_comment": "content-guard: allow email file",
   "name": "immich-mcp",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Operator control CLI for Immich with an MCP adapter for photo search, curation, memories, duplicates, stacks, and safe agent workflows",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "immich-mcp": "./dist/mcp-bin.js",
-    "immichctrl": "./dist/cli.js",
-    "immichctl": "./dist/cli.js"
+    "immich-mcp": "dist/mcp-bin.js",
+    "immichctrl": "dist/cli.js",
+    "immichctl": "dist/cli.js"
   },
   "scripts": {
     "build": "tsup",
@@ -25,7 +25,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/lidless-labs/immichctrl.git"
+    "url": "git+https://github.com/lidless-labs/immichctrl.git"
   },
   "homepage": "https://github.com/lidless-labs/immichctrl#readme",
   "bugs": {
