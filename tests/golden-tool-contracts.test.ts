@@ -50,6 +50,14 @@ function parsedPayload(result: ToolResult): unknown {
   return JSON.parse(result.content[0]!.text);
 }
 
+function rawText(result: ToolResult): string {
+  expect(result.isError).toBeUndefined();
+  expect(result.details).toBeUndefined();
+  expect(result.content).toHaveLength(1);
+  expect(result.content[0]).toMatchObject({ type: "text" });
+  return result.content[0]!.text;
+}
+
 describe("golden confirm-gated destructive refusal contracts", () => {
   let server: McpServer;
 
@@ -113,6 +121,27 @@ describe("golden confirm-gated destructive refusal contracts", () => {
     });
     expect(sdkCalls).toEqual([]);
   });
+
+  it.each([
+    ["immich_bulk_update_assets", { ids: [UUID_A], isFavorite: true }],
+    ["immich_delete_asset", { ids: [UUID_A], permanent: true }],
+    ["immich_resolve_duplicates", { keep: [UUID_A], discard: [UUID_B], delete: true }],
+  ])("%s returns writes-disabled before confirm-required when both gates apply", async (name, args) => {
+    server = makeServer(cfgRead);
+
+    const result = await callTool(server, name, args);
+
+    expect(result).toEqual({
+      isError: true,
+      content: [
+        {
+          type: "text",
+          text: "Writes disabled. Set IMMICH_ALLOW_WRITES=true to enable destructive and modifying tools.",
+        },
+      ],
+    });
+    expect(sdkCalls).toEqual([]);
+  });
 });
 
 describe("golden result and payload shape contracts", () => {
@@ -130,12 +159,32 @@ describe("golden result and payload shape contracts", () => {
     mockSdkResponse("getAllTags", [{ id: UUID_A, value: "family" }]);
     mockSdkResponse("getAssetDuplicates", [{ duplicateId: "dup-1", assets: [{ id: UUID_A }, { id: UUID_B }] }]);
 
-    expect(parsedPayload(await callTool(server, "immich_ping"))).toEqual({ res: "pong" });
-    expect(parsedPayload(await callTool(server, "immich_get_server_statistics"))).toEqual({ photos: 12, videos: 3 });
+    const ping = await callTool(server, "immich_ping");
+    expect(rawText(ping)).toBe(`{
+  "res": "pong"
+}`);
+    expect(parsedPayload(ping)).toEqual({ res: "pong" });
+
+    const statistics = await callTool(server, "immich_get_server_statistics");
+    expect(rawText(statistics)).toBe(`{
+  "photos": 12,
+  "videos": 3
+}`);
+    expect(parsedPayload(statistics)).toEqual({ photos: 12, videos: 3 });
+
     expect(parsedPayload(await callTool(server, "immich_list_assets", { size: 1 }))).toEqual({
       assets: { items: [{ id: UUID_A, type: "IMAGE" }], total: 1 },
     });
-    expect(parsedPayload(await callTool(server, "immich_list_tags"))).toEqual([{ id: UUID_A, value: "family" }]);
+
+    const tags = await callTool(server, "immich_list_tags");
+    expect(rawText(tags)).toBe(`[
+  {
+    "id": "00000000-0000-0000-0000-000000000001",
+    "value": "family"
+  }
+]`);
+    expect(parsedPayload(tags)).toEqual([{ id: UUID_A, value: "family" }]);
+
     expect(parsedPayload(await callTool(server, "immich_list_duplicates"))).toEqual([
       { duplicateId: "dup-1", assets: [{ id: UUID_A }, { id: UUID_B }] },
     ]);
