@@ -1,5 +1,6 @@
 import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
+import { operatorErrorMessage } from "@lidless-labs/effect-operator-kit";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { getConfig } from "./config.js";
@@ -59,6 +60,12 @@ export async function serve(): Promise<void> {
   await server.connect(transport);
 }
 
+/** MCP process fatal boundary: kit message extraction, repo-owned fatal prefix. */
+export function reportMcpFatalError(error: unknown): never {
+  console.error(`immich-mcp fatal: ${operatorErrorMessage(error)}`);
+  process.exit(1);
+}
+
 // True when this module is the process entrypoint. process.argv[1] is often a
 // symlink (npm installs the bin as a link); resolve it before comparing so the
 // back-compat direct-run of index.js still starts the server.
@@ -73,9 +80,5 @@ const isEntrypoint = (() => {
 })();
 
 if (isEntrypoint) {
-  serve().catch((error: unknown) => {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.error(`immich-mcp fatal: ${msg}`);
-    process.exit(1);
-  });
+  serve().catch(reportMcpFatalError);
 }

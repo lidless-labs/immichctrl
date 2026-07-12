@@ -1,5 +1,6 @@
 import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
+import { operatorErrorMessage } from "@lidless-labs/effect-operator-kit";
 import { getConfig } from "./config.js";
 import { ImmichClient } from "./immich-client.js";
 import pkg from "../package.json" with { type: "json" };
@@ -517,7 +518,7 @@ export async function run(argv: string[], deps: CliDeps): Promise<number> {
   try {
     parsed = parseArgs(argv);
   } catch (error) {
-    deps.err(error instanceof Error ? error.message : String(error));
+    deps.err(operatorErrorMessage(error));
     deps.err("");
     deps.err(HELP);
     return 2;
@@ -663,7 +664,8 @@ export async function run(argv: string[], deps: CliDeps): Promise<number> {
       }
     }
   } catch (error) {
-    deps.err(error instanceof Error ? error.message : String(error));
+    // Kit cli adapter message extraction; no repo redact layer (immich has none).
+    deps.err(operatorErrorMessage(error));
     return 1;
   }
   return 0;
@@ -695,7 +697,7 @@ if (isEntrypoint) {
       process.exitCode = code;
     })
     .catch((error: unknown) => {
-      process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+      process.stderr.write(`${operatorErrorMessage(error)}\n`);
       process.exitCode = 1;
     });
 }
