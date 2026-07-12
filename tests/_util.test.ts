@@ -18,6 +18,14 @@ describe("requireWrites", () => {
   it("throws when writes disabled", () => {
     expect(() => requireWrites(cfg(false))).toThrow(WriteDisabledError);
   });
+  it("pins the writes-disabled refusal text", () => {
+    expect(new WriteDisabledError().message).toBe(
+      "Writes disabled. Set IMMICH_ALLOW_WRITES=true to enable destructive and modifying tools.",
+    );
+    expect(() => requireWrites(cfg(false))).toThrow(
+      "Writes disabled. Set IMMICH_ALLOW_WRITES=true to enable destructive and modifying tools.",
+    );
+  });
   it("passes when writes enabled", () => {
     expect(() => requireWrites(cfg(true))).not.toThrow();
   });
@@ -27,6 +35,11 @@ describe("requireConfirm", () => {
   it("throws without confirm: true", () => {
     expect(() => requireConfirm("foo", undefined)).toThrow(ConfirmRequiredError);
     expect(() => requireConfirm("foo", false as unknown as boolean)).toThrow(ConfirmRequiredError);
+  });
+  it("pins the confirm-required refusal text", () => {
+    expect(new ConfirmRequiredError("foo").message).toBe(
+      "foo is destructive. Pass { confirm: true } in tool args to proceed.",
+    );
   });
   it("passes with confirm: true", () => {
     expect(() => requireConfirm("foo", true)).not.toThrow();
