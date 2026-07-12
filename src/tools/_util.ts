@@ -1,3 +1,4 @@
+import { ok, fail, refuseUnconfirmed } from "@lidless-labs/effect-operator-kit";
 import type { Config } from "../config.js";
 
 export class WriteDisabledError extends Error {
@@ -11,6 +12,7 @@ export class WriteDisabledError extends Error {
 
 export class ConfirmRequiredError extends Error {
   constructor(toolName: string) {
+    // Kit refuseUnconfirmed wording differs; keep this repo's pinned refusal text.
     super(
       `${toolName} is destructive. Pass { confirm: true } in tool args to proceed.`,
     );
@@ -44,15 +46,36 @@ export function surfaceError(err: unknown): string {
   return `Immich API ${status}: ${msg}`;
 }
 
+/**
+ * Success MCP result. Delegates JSON text formatting to kit `ok`, then drops
+ * kit's `details` so the observable shape stays content-only (golden contract:
+ * no `details`, no `isError`).
+ */
 export function asMcpResponse(payload: unknown) {
-  return {
-    content: [{ type: "text" as const, text: JSON.stringify(payload, null, 2) }],
-  };
+  const kit = ok(payload);
+  return { content: kit.content };
 }
 
+const CONFIRM_REFUSAL_RE =
+  /^(.+) is destructive\. Pass \{ confirm: true \} in tool args to proceed\.$/;
+
+/**
+ * Error MCP result. Routes confirm-refusal messages through kit
+ * `refuseUnconfirmed` and all other messages through kit `fail` for the
+ * isError envelope, while pinning plain-text content.
+ *
+ * Semantic wraps:
+ * - kit `fail("x")` encodes text as JSON `{"error":"x"}`; this repo pins plain `x`.
+ * - kit `refuseUnconfirmed(op)` uses different refusal wording; this repo pins
+ *   `${op} is destructive. Pass { confirm: true } in tool args to proceed.`
+ */
 export function asMcpError(message: string) {
+  const confirm = CONFIRM_REFUSAL_RE.exec(message);
+  const kit = confirm ? refuseUnconfirmed(confirm[1]!) : fail(message);
   return {
-    isError: true,
-    content: [{ type: "text" as const, text: message }],
+    isError: true as const,
+    content: kit.content.map((part) =>
+      part.type === "text" ? { type: "text" as const, text: message } : part,
+    ),
   };
 }
