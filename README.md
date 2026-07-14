@@ -2,6 +2,9 @@
   <img src="docs/assets/immichctrl-social-preview.jpg" alt="immichctrl banner" width="900">
 </p>
 
+<p align="center">
+  <a href="https://lidless.dev"><img src="docs/assets/marks/immichctrl-circle.png" width="48" alt="Lidless Labs"></a>
+</p>
 <h1 align="center">immichctrl</h1>
 
 <p align="center"><strong>An operator control CLI for Immich, with an MCP adapter so AI clients can search, curate, and clean up your self-hosted photo and video library through the same safe tool surface.</strong></p>
@@ -323,3 +326,11 @@ Calls `immich_search_then_album` to search and create the album in one writes-ga
 ## License
 
 MIT - see [LICENSE](LICENSE).
+
+---
+
+<p align="center"><a href="https://lidless.dev">Part of <strong>Lidless Labs</strong></a> &middot; the eye does not close</p>
+
+<p align="center"><sub><strong>Homelab:</strong> <a href="https://github.com/lidless-labs/proxmox-mcp">proxmox-mcp</a> &middot; <a href="https://github.com/lidless-labs/adguardctrl">adguardctrl</a> &middot; <a href="https://github.com/lidless-labs/jellyctrl">jellyctrl</a> &middot; <a href="https://github.com/lidless-labs/proxguard">proxguard</a></sub></p>
+
+<p align="center"><sub><a href="https://lidless.dev">All tools</a> &middot; <a href="https://github.com/lidless-labs">Lidless Labs on GitHub</a></sub></p>
