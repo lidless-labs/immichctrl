@@ -41,6 +41,31 @@ function boolWithFallback(
 }
 
 /**
+ * Normalize base URL so it always includes the `/api` path prefix.
+ *
+ * Immich v3 moved API endpoints under `/api/*`. Users commonly set
+ * `IMMICH_BASE_URL` to just the server origin (e.g. `https://photos.example.com`)
+ * without the `/api` suffix. This function appends `/api` if the URL
+ * does not already end with it, so the SDK constructs correct paths like
+ * `https://photos.example.com/api/search/smart` instead of
+ * `https://photos.example.com/search/smart`.
+ *
+ * Accepts:
+ *   "https://photos.example.com"         -> "https://photos.example.com/api"
+ *   "https://photos.example.com/"        -> "https://photos.example.com/api"
+ *   "https://photos.example.com/api"     -> "https://photos.example.com/api"
+ *   "https://photos.example.com/api/"    -> "https://photos.example.com/api"
+ *   "http://localhost:2283/api"           -> "http://localhost:2283/api"
+ */
+export function normalizeBaseUrl(raw: string): string {
+  let url = raw.replace(/\/+$/, "");
+  if (!url.endsWith("/api")) {
+    url += "/api";
+  }
+  return url;
+}
+
+/**
  * Load Immich MCP config from process env. Uses kit `fromProcessEnv` for env
  * access; repo-local wrappers preserve Immich-specific messages and boolean rules.
  */
@@ -56,7 +81,7 @@ export function getConfig(): Config {
   const apiKey = requiredEnvString(env, "IMMICH_API_KEY", "IMMICH_API_KEY is required");
 
   return {
-    baseUrl,
+    baseUrl: normalizeBaseUrl(baseUrl),
     apiKey,
     allowWrites: boolWithFallback(env, "IMMICH_ALLOW_WRITES", false),
     verifySsl: boolWithFallback(env, "IMMICH_VERIFY_SSL", true),

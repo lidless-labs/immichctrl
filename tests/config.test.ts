@@ -1,5 +1,49 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
+describe("normalizeBaseUrl", () => {
+  it("appends /api when missing", async () => {
+    const { normalizeBaseUrl } = await import("../src/config.js");
+    expect(normalizeBaseUrl("https://photos.example.com")).toBe(
+      "https://photos.example.com/api",
+    );
+  });
+
+  it("removes trailing slash before appending /api", async () => {
+    const { normalizeBaseUrl } = await import("../src/config.js");
+    expect(normalizeBaseUrl("https://photos.example.com/")).toBe(
+      "https://photos.example.com/api",
+    );
+  });
+
+  it("leaves /api intact when already present", async () => {
+    const { normalizeBaseUrl } = await import("../src/config.js");
+    expect(normalizeBaseUrl("https://photos.example.com/api")).toBe(
+      "https://photos.example.com/api",
+    );
+  });
+
+  it("handles /api/ with trailing slash", async () => {
+    const { normalizeBaseUrl } = await import("../src/config.js");
+    expect(normalizeBaseUrl("https://photos.example.com/api/")).toBe(
+      "https://photos.example.com/api",
+    );
+  });
+
+  it("handles localhost with port", async () => {
+    const { normalizeBaseUrl } = await import("../src/config.js");
+    expect(normalizeBaseUrl("http://localhost:2283")).toBe(
+      "http://localhost:2283/api",
+    );
+  });
+
+  it("handles localhost with port and existing /api", async () => {
+    const { normalizeBaseUrl } = await import("../src/config.js");
+    expect(normalizeBaseUrl("http://localhost:2283/api")).toBe(
+      "http://localhost:2283/api",
+    );
+  });
+});
+
 describe("getConfig", () => {
   const ORIGINAL = { ...process.env };
 
