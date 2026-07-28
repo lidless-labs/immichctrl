@@ -21,6 +21,7 @@ import { registerMemoryFlowTools } from "./tools/memory-flows.js";
 import { registerAlbumFlowTools } from "./tools/album-flows.js";
 import { registerTrashTools } from "./tools/trash.js";
 import { registerJobTools } from "./tools/jobs.js";
+import { finalizeToolRegistry } from "./registry.js";
 
 /**
  * Build the stdio MCP server and connect it. Extracted from the former
@@ -55,6 +56,12 @@ export async function serve(): Promise<void> {
   registerAlbumFlowTools(server, config);
   registerTrashTools(server, config);
   registerJobTools(server, config);
+
+  // Stamp each registered tool's access-tier annotations from the registry,
+  // AFTER all registrations and BEFORE the transport is created/connected.
+  // assertNoDrift fails closed if a tool was added/removed/renamed without
+  // updating src/registry.ts.
+  finalizeToolRegistry(server);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
