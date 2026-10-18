@@ -20,7 +20,7 @@ vi.mock("@immich/sdk", async () => {
 const TOKEN = randomUUID();
 const env = {
   IMMICH_BASE_URL: "https://photos.example.com/api",
-  IMMICH_API_KEY: "test-upstream-secret",
+  IMMICH_API_KEY: "test-upstream-secret-at-least-32-characters",
   IMMICH_MCP_HTTP_TOKEN: TOKEN,
   IMMICH_MCP_HTTP_PORT: "0",
   IMMICH_MCP_HTTP_HOST: undefined,
@@ -119,7 +119,23 @@ describe("authenticated Streamable HTTP", () => {
   it.each([undefined, "", "   ", env.IMMICH_API_KEY,
   ])("refuses missing, blank, or reused credentials", async (token) => {
     configure({ IMMICH_MCP_HTTP_TOKEN: token });
-    await expect(createHttpServer()).rejects.toThrow(/IMMICH_MCP_HTTP_TOKEN/);
+    await expect(createHttpServer()).rejects.toThrow(token?.trim() ? /must differ/ : /required and must not be blank/);
+  });
+
+  it("refuses a token shorter than 32 characters", async () => {
+    configure({ IMMICH_MCP_HTTP_TOKEN: "a".repeat(31) });
+    await expect(createHttpServer()).rejects.toThrow(/at least 32 characters/);
+  });
+
+  it.each(["0.0.0.0", "::", "[::]"])("refuses wildcard bind host %s", async (host) => {
+    configure({ IMMICH_MCP_HTTP_HOST: host });
+    await expect(createHttpServer()).rejects.toThrow(/not a wildcard/);
+  });
+
+  it("accepts a token with surrounding whitespace from a secrets file", async () => {
+    const url = await start({ IMMICH_MCP_HTTP_TOKEN: `  ${TOKEN}\n` });
+    const { client } = await connect(url);
+    expect((await client.listTools()).tools).toHaveLength(74);
   });
 
   it.each(["-1", "65536", "abc", "3000suffix", "1.5"])("refuses invalid port %s", async (port) => {
@@ -236,9 +252,9 @@ describe("authenticated Streamable HTTP", () => {
     await connect(url);
   });
 
-  it.each(["user-secret", "password-secret"])("refuses upstream URL credential reuse: %s", async (token) => {
-    configure({ IMMICH_BASE_URL: "https://user-secret:password-secret@photos.example.com/api", IMMICH_MCP_HTTP_TOKEN: token });
-    await expect(createHttpServer()).rejects.toThrow(/IMMICH_MCP_HTTP_TOKEN/);
+  it.each(["user-secret-at-least-32-characters", "password-secret-at-least-32-characters"])("refuses upstream URL credential reuse: %s", async (token) => {
+    configure({ IMMICH_BASE_URL: "https://user-secret-at-least-32-characters:password-secret-at-least-32-characters@photos.example.com/api", IMMICH_MCP_HTTP_TOKEN: token });
+    await expect(createHttpServer()).rejects.toThrow(/must differ/);
   });
 
   it("closes active sessions and the listener idempotently", async () => {
