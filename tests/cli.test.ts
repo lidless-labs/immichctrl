@@ -223,9 +223,18 @@ describe("run", () => {
     expect(make).not.toHaveBeenCalled();
   });
 
+  it("delegates explicit HTTP mode without constructing an operator client", async () => {
+    const { deps, serve, madeCount } = capture();
+    expect(parseArgs(["mcp", "--http"])).toEqual({ kind: "mcp", http: true });
+    expect(await run(["mcp", "--http"], deps)).toBe(0);
+    expect(serve).toHaveBeenCalledWith(true);
+    expect(madeCount()).toBe(0);
+  });
+
   it("delegates `mcp` to serve()", async () => {
     const { deps, serve } = capture();
     expect(await run(["mcp"], deps)).toBe(0);
     expect(serve).toHaveBeenCalledOnce();
+    expect(serve).toHaveBeenCalledWith();
   });
 });

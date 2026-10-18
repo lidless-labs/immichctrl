@@ -75,6 +75,90 @@ npm exec --yes --package immich-mcp -- immichctrl ping
 
 After a global install, the operator CLI is available as `immichctrl`. To start the MCP adapter instead, use `immichctrl mcp` or the back-compat `immich-mcp` binary. MCP launchers can keep using the config below.
 
+## HTTP mode
+
+Run one persistent process for multiple MCP clients:
+
+```sh
+node dist/index.js --http
+# Also: node dist/cli.js mcp --http
+# Or: immichctrl mcp --http
+```
+
+Set the usual `IMMICH_BASE_URL` and `IMMICH_API_KEY` on the server, plus an
+independent `IMMICH_MCP_HTTP_TOKEN`. Generate a random HTTP token, for example
+with `openssl rand -hex 32`. Startup refuses a missing or blank token, or one
+equal to the API key or credentials embedded in the upstream URL. Authentication
+compares SHA-256 digests in constant time.
+
+- `IMMICH_MCP_HTTP_TOKEN`: required bearer token.
+- `IMMICH_MCP_HTTP_HOST`: defaults to IPv4 loopback.
+- `IMMICH_MCP_HTTP_PORT`: defaults to `3112`. Use `0` to select a free port.
+
+`/mcp` supports Streamable HTTP POST, GET, and DELETE with authentication on every
+request. `GET /healthz` returns only `{"status":"ok"}` without authentication.
+Host and Origin checks run before authentication to reject DNS rebinding.
+Bodies are limited to 1 MiB, including chunked requests. Request and header
+timeouts are 30 and 10 seconds. The listener accepts at most 128 sessions and
+reaps sessions idle for 30 minutes on a minute timer. Active tool calls are
+excluded from idle expiry. An idle SSE channel does not keep a session alive.
+SIGTERM and SIGINT close sessions and the listener. Clients must initialize again
+after expiry or restart.
+
+Each session owns a fresh MCP server and tool registry. Previews, keep-strategy
+plans, duplicate groups, and album indexes are computed within each invocation.
+There is no pending approval or plan store. Confirmation arguments apply only to
+the current call, and `IMMICH_ALLOW_WRITES` remains off by default. The process
+shares one fixed upstream SDK configuration and write policy. Session IDs route
+protocol state, and all clients with the bearer token share the same Immich
+account privileges. There is no per-client authorization or deferred tool set.
+
+HTTP disables `immich_upload_asset_from_path` and filesystem CSV exports, even
+when writes are enabled. These calls return an error before accessing local
+files. Use stdio for workflows that need host filesystem access. Stdio behavior
+and its existing write and confirmation gates are unchanged.
+
+Keep the default loopback binding for local clients. Remote access requires a
+trusted TLS proxy or tunnel and network access controls. This listener provides
+no TLS, OAuth, or browser CORS access. Host must be the bound host or a loopback
+alias. A supplied Origin must be an HTTP or HTTPS loopback origin. Preserve an
+allowed Host header through a proxy. A wildcard bind does not allow arbitrary
+Host headers.
+
+### Claude Code
+
+Configure an HTTP entry under `mcpServers`:
+
+```json
+{
+  "mcpServers": {
+    "immich": {
+      "type": "http",
+      "url": "http://localhost:3112/mcp",
+      "headersHelper": "/path/to/helper IMMICH_MCP_HTTP_TOKEN"
+    }
+  }
+}
+```
+
+The executable helper reads the named variable from its environment or a secret
+store and prints `{"Authorization":"Bearer ..."}` to stdout. Keep the token out
+of the config and logs.
+
+### Codex
+
+```toml
+[mcp_servers.immich]
+url = "http://localhost:3112/mcp"
+bearer_token_env_var = "IMMICH_MCP_HTTP_TOKEN"
+```
+
+Set the token in the client's environment. Upstream credentials stay on the
+server. See [the example user service](docs/systemd/immich-mcp-http.service).
+Create its EnvironmentFile with mode `0600`, containing the upstream config and
+HTTP token. Adjust the example installation paths before installing the unit.
+The example enables `NoNewPrivileges`, `PrivateTmp`, and a `0077` umask.
+
 ## MCP client config
 
 Copy this into your MCP client. It uses `npx -y immich-mcp` so there is nothing to install globally:

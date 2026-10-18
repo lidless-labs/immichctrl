@@ -125,6 +125,7 @@ export function registerAssetTools(server: McpServer, config: Config): void {
     async ({ filePath, deviceId }) => {
       try {
         requireWrites(config);
+        if (config.localFileAccess === false) throw new Error("Local filesystem access is disabled over HTTP");
         const buf = await fs.readFile(filePath);
         const stat = await fs.stat(filePath);
         const checksum = createHash("sha1").update(buf).digest("base64");

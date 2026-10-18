@@ -5,6 +5,8 @@ export interface Config {
   apiKey: string;
   allowWrites: boolean;
   verifySsl: boolean;
+  /** HTTP sessions cannot read or write host files. Undefined preserves stdio. */
+  localFileAccess?: boolean;
 }
 
 /**

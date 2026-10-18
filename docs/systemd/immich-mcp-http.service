@@ -1,0 +1,21 @@
+[Unit]
+Description=Immich MCP HTTP server
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/immich-mcp
+ExecStart=/usr/bin/node /opt/immich-mcp/dist/index.js --http
+# Create the EnvironmentFile with mode 0600.
+EnvironmentFile=%h/.config/immich-mcp/http.env
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
+
+[Install]
+WantedBy=default.target
