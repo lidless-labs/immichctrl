@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { promises as fs } from "node:fs";
+import { promises as fs, constants } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -126,8 +126,41 @@ export function registerAssetTools(server: McpServer, config: Config): void {
       try {
         requireWrites(config);
         if (config.localFileAccess === false) throw new Error("Local filesystem access is disabled over HTTP");
-        const buf = await fs.readFile(filePath);
-        const stat = await fs.stat(filePath);
+        const root = config.uploadBaseDir;
+        if (!root) throw new Error("IMMICH_UPLOAD_BASE_DIR is required for path-based uploads");
+        if (!path.isAbsolute(root)) throw new Error("IMMICH_UPLOAD_BASE_DIR must be an absolute path");
+        const requireContained = (resolved: string) => {
+          const prefix = root.endsWith(path.sep) ? root : root + path.sep;
+          if (resolved !== root && !resolved.startsWith(prefix)) {
+            throw new Error("Upload path is outside IMMICH_UPLOAD_BASE_DIR");
+          }
+        };
+        const resolved = await fs.realpath(filePath);
+        requireContained(resolved);
+        // NOFOLLOW blocks final-component swaps. NONBLOCK lets fstat reject FIFOs
+        // without waiting for a writer. Parent-component swaps need the fd check.
+        const handle = await fs.open(resolved, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+        const { buf, stat } = await (async () => {
+          try {
+            const stat = await handle.stat();
+            if (!stat.isFile()) throw new Error("Upload path must be a regular file");
+            // Pathname restat checks can race again. Require an OS-backed path
+            // for this exact descriptor rather than falling back to those checks.
+            if (process.platform !== "linux") {
+              throw new Error("Path uploads require opened-file path verification (Linux /proc/self/fd)");
+            }
+            let openedPath: string;
+            try {
+              openedPath = await fs.realpath(`/proc/self/fd/${handle.fd}`);
+            } catch {
+              throw new Error("Cannot verify upload file containment through /proc/self/fd");
+            }
+            requireContained(openedPath);
+            return { buf: await handle.readFile(), stat };
+          } finally {
+            await handle.close();
+          }
+        })();
         const checksum = createHash("sha1").update(buf).digest("base64");
         const deviceAssetId = `${path.basename(filePath)}-${stat.mtimeMs}`;
         const FileCtor =

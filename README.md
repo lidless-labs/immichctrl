@@ -94,7 +94,7 @@ compares SHA-256 digests in constant time.
 - `IMMICH_MCP_HTTP_TOKEN`: required bearer token.
 - `IMMICH_MCP_HTTP_HOST`: defaults to IPv4 loopback.
 - `IMMICH_MCP_HTTP_PORT`: defaults to `3112`. Use `0` to select a free port.
-- `IMMICH_MCP_HTTP_LOCAL_FILES`: `false` by default. HTTP mode then refuses `immich_upload_asset_from_path` and CSV `exportTo`. Set `true` only when every client holding the token may read and write files as the server user. Upload paths stay confined to `IMMICH_UPLOAD_BASE_DIR`.
+- `IMMICH_MCP_HTTP_LOCAL_FILES`: `false` by default. HTTP mode then refuses `immich_upload_asset_from_path` and CSV `exportTo`. Set `true` only for trusted clients. Upload paths stay confined to `IMMICH_UPLOAD_BASE_DIR`. CSV `exportTo` in `immich_resolve_with_keep_strategy` and `immich_audit_trash` is a trusted-client feature: with writes enabled, clients can create files anywhere the server user can write, including through symlinked parent directories. These exports refuse to overwrite existing files and are not confined by `IMMICH_UPLOAD_BASE_DIR`. This export policy also applies over stdio.
 
 `/mcp` supports Streamable HTTP POST, GET, and DELETE with authentication on every
 request. `GET /healthz` returns only `{"status":"ok"}` without authentication.
@@ -114,10 +114,12 @@ shares one fixed upstream SDK configuration and write policy. Session IDs route
 protocol state, and all clients with the bearer token share the same Immich
 account privileges. There is no per-client authorization or deferred tool set.
 
-HTTP disables `immich_upload_asset_from_path` and filesystem CSV exports, even
-when writes are enabled. These calls return an error before accessing local
-files. Use stdio for workflows that need host filesystem access. Stdio behavior
-and its existing write and confirmation gates are unchanged.
+HTTP disables `immich_upload_asset_from_path` and filesystem CSV exports by
+default, returning an error before accessing local files. With
+`IMMICH_MCP_HTTP_LOCAL_FILES=true`, trusted clients can upload files confined to
+`IMMICH_UPLOAD_BASE_DIR` and create CSV exports at arbitrary writable paths.
+Both operations still require `IMMICH_ALLOW_WRITES=true`. Stdio uses the same
+upload confinement and write gates.
 
 Keep the default loopback binding for local clients. Remote access requires a
 trusted TLS proxy or tunnel and network access controls. This listener provides
@@ -324,7 +326,7 @@ Set these environment variables in your shell or MCP client config:
 | `IMMICH_API_KEY` | yes | - | API key from Account Settings > API Keys in the Immich web UI. |
 | `IMMICH_ALLOW_WRITES` | no | `false` | Set to `true` to expose write and delete tools. Reads always work. |
 | `IMMICH_VERIFY_SSL` | no | `true` | Set to `false` to accept self-signed certs. The relaxed TLS check is scoped to the Immich client only (a dedicated request dispatcher); it does **not** disable certificate validation process-wide. |
-| `IMMICH_UPLOAD_BASE_DIR` | no | - | Absolute directory that `immich_upload_asset_from_path` is confined to. When unset, path-based upload is refused. Files must resolve (after following symlinks) inside this directory. |
+| `IMMICH_UPLOAD_BASE_DIR` | no | - | Absolute directory that `immich_upload_asset_from_path` is confined to. When unset, path-based upload is refused. The directory must exist at startup. Files must resolve (after following symlinks) inside this directory and must be regular files. Path uploads currently require Linux with `/proc/self/fd` to verify the opened file remains inside the directory. Other platforms refuse path uploads rather than relying on pathname checks that can race. |
 
 ### Getting an API key
 

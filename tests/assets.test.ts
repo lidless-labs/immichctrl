@@ -1,5 +1,10 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { installFakeSdk, resetFakeSdk, sdkCalls, mockSdkResponse } from "./_fake-sdk.js";
+
+import { promises as fs } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import type { Config } from "../src/config.js";
 
 installFakeSdk();
 
@@ -126,5 +131,142 @@ describe("asset tools - confirm gate", () => {
     }) as { isError?: boolean };
     expect(out.isError).toBeFalsy();
     expect(sdkCalls[0]?.fn).toBe("updateAssets");
+  });
+});
+
+describe("path upload confinement", () => {
+  let dir: string;
+  let root: string;
+  let inside: string;
+  let outside: string;
+
+  beforeEach(async () => {
+    resetFakeSdk();
+    dir = await fs.mkdtemp(path.join(tmpdir(), "immich-upload-"));
+    root = path.join(dir, "root");
+    await fs.mkdir(root);
+    await fs.mkdir(`${root}-evil`);
+    inside = path.join(root, "photo.jpg");
+    outside = path.join(dir, "private.txt");
+    await fs.writeFile(inside, "photo bytes");
+    await fs.writeFile(outside, "private bytes");
+    await fs.writeFile(path.join(`${root}-evil`, "photo.jpg"), "sibling bytes");
+    await fs.symlink(outside, path.join(root, "link.jpg"));
+  });
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  async function upload(filePath: string, overrides: Partial<Config> = {}) {
+    const server = new McpServer({ name: "test", version: "0" });
+    registerAssetTools(server, { ...cfgWrite, uploadBaseDir: root, ...overrides } as Config);
+    return await callTool(server, "immich_upload_asset_from_path", { filePath, deviceId: "test" }) as {
+      isError?: boolean; content: { text: string }[];
+    };
+  }
+
+  it("refuses an unset root before any filesystem access", async () => {
+    const realpath = vi.spyOn(fs, "realpath");
+    const open = vi.spyOn(fs, "open");
+    const readFile = vi.spyOn(fs, "readFile");
+    const stat = vi.spyOn(fs, "stat");
+    const out = await upload(inside, { uploadBaseDir: undefined });
+    expect(out.isError).toBe(true);
+    expect(out.content[0]!.text).toMatch(/IMMICH_UPLOAD_BASE_DIR/);
+    for (const spy of [realpath, open, readFile, stat]) expect(spy).not.toHaveBeenCalled();
+    expect(sdkCalls).toHaveLength(0);
+  });
+
+  it.each(["outside", "dot-dot", "symlink", "sibling-prefix"])("refuses %s escape", async (kind) => {
+    const target = {
+      outside,
+      "dot-dot": `${root}${path.sep}..${path.sep}private.txt`,
+      symlink: path.join(root, "link.jpg"),
+      "sibling-prefix": path.join(`${root}-evil`, "photo.jpg"),
+    }[kind]!;
+    const out = await upload(target);
+    expect(out.isError).toBe(true);
+    expect(out.content[0]!.text).toMatch(/outside IMMICH_UPLOAD_BASE_DIR/);
+    expect(sdkCalls).toHaveLength(0);
+  });
+
+  it("uploads a regular file inside the root with its handle metadata", async () => {
+    const stat = await fs.stat(inside);
+    const out = await upload(inside);
+    expect(out.isError).toBeFalsy();
+    const call = sdkCalls.find((c) => c.fn === "uploadAsset")!;
+    const args = call.args[0] as { assetMediaCreateDto: {
+      assetData: File; deviceAssetId: string; fileCreatedAt: string; fileModifiedAt: string;
+    } };
+    expect(await args.assetMediaCreateDto.assetData.text()).toBe("photo bytes");
+    expect(args.assetMediaCreateDto.deviceAssetId).toBe(`photo.jpg-${stat.mtimeMs}`);
+    expect(args.assetMediaCreateDto.fileCreatedAt).toBe(stat.mtime.toISOString());
+    expect(args.assetMediaCreateDto.fileModifiedAt).toBe(stat.mtime.toISOString());
+  });
+
+  it("refuses a directory inside the root", async () => {
+    const out = await upload(root);
+    expect(out.isError).toBe(true);
+    expect(out.content[0]!.text).toMatch(/regular file/);
+    expect(sdkCalls).toHaveLength(0);
+  });
+
+  it.each([
+    [{ allowWrites: false, localFileAccess: false }, /Writes disabled/],
+    [{ localFileAccess: false }, /Local filesystem access is disabled/],
+  ] as const)("preserves guard order for %j", async (overrides, message) => {
+    const realpath = vi.spyOn(fs, "realpath");
+    const out = await upload(inside, { ...overrides, uploadBaseDir: undefined });
+    expect(out.isError).toBe(true);
+    expect(out.content[0]!.text).toMatch(message);
+    expect(realpath).not.toHaveBeenCalled();
+    expect(sdkCalls).toHaveLength(0);
+  });
+
+  it("fails closed on platforms without opened-file path verification", async () => {
+    const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    try {
+      const out = await upload(inside);
+      expect(out.isError).toBe(true);
+      expect(out.content[0]!.text).toMatch(/opened-file path verification/);
+      expect(sdkCalls).toHaveLength(0);
+    } finally {
+      Object.defineProperty(process, "platform", platform);
+    }
+  });
+
+  it.skipIf(process.platform !== "linux")("fails closed when the opened descriptor cannot be resolved", async () => {
+    const realpath = fs.realpath.bind(fs);
+    vi.spyOn(fs, "realpath").mockImplementation(async (file, ...args) => {
+      if (String(file).startsWith("/proc/self/fd/")) throw new Error("procfs unavailable");
+      return realpath(file, ...args);
+    });
+    const out = await upload(inside);
+    expect(out.isError).toBe(true);
+    expect(out.content[0]!.text).toMatch(/Cannot verify upload file containment/);
+    expect(sdkCalls).toHaveLength(0);
+  });
+
+  it.skipIf(process.platform !== "linux")("refuses a parent symlink swapped outside between realpath and open", async () => {
+    const nested = path.join(root, "nested");
+    await fs.mkdir(nested);
+    await fs.writeFile(path.join(nested, "photo.jpg"), "safe bytes");
+    const open = fs.open.bind(fs);
+    let handle: Awaited<ReturnType<typeof fs.open>> | undefined;
+    vi.spyOn(fs, "open").mockImplementationOnce(async (...args) => {
+      await fs.rename(nested, path.join(root, "saved"));
+      await fs.symlink(`${root}-evil`, nested);
+      handle = await open(...args);
+      return handle;
+    });
+    const out = await upload(path.join(nested, "photo.jpg"));
+    expect(out.isError).toBe(true);
+    expect(out.content[0]!.text).toMatch(/outside IMMICH_UPLOAD_BASE_DIR/);
+    expect(sdkCalls).toHaveLength(0);
+    expect(handle).toBeDefined();
+    await expect(handle!.stat()).rejects.toThrow(/closed/);
   });
 });
