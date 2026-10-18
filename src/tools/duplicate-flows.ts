@@ -665,6 +665,7 @@ export function registerDuplicateFlowTools(server: McpServer, config: Config): v
         let exportRowCount: number | undefined;
         if (args.exportTo) {
           requireWrites(config);
+          if (config.localFileAccess === false) throw new Error("Local filesystem access is disabled over HTTP");
           const rows = [...enrichedKept, ...flagged];
           await writePlanCsv(args.exportTo, rows);
           exportPath = args.exportTo;
@@ -1201,6 +1202,7 @@ export function registerDuplicateFlowTools(server: McpServer, config: Config): v
         let exportRowCount: number | undefined;
         if (args.exportTo) {
           requireWrites(config);
+          if (config.localFileAccess === false) throw new Error("Local filesystem access is disabled over HTTP");
           const header = "trashedId,filename,sizeBytes,checksum,fileCreatedAt,status";
           const body = trashed
             .map((t) => {

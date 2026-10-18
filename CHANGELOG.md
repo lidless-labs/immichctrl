@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file. Format foll
 
 ## [Unreleased]
 
+### Added
+- Authenticated Streamable HTTP mode on `/mcp` with per-session MCP servers, bounded sessions and request bodies, idle expiry, and graceful shutdown. Start with `node dist/index.js --http` or `immichctrl mcp --http`. The default port is `3112`.
+- Claude Code and Codex HTTP configuration examples and a hardened example systemd user service.
+
+### Security
+- HTTP requires an independent bearer token and rejects invalid Host and Origin headers before authentication. Host filesystem uploads and CSV exports are disabled over HTTP, even when Immich writes are enabled. Stdio keeps its existing behavior.
+
 ### Docs
 - Rewrote `README.md` to the OSS adoption standard: a what / why / how-it-differs opening, a prominent website link, an `npx -y immich-mcp` MCP client config block, a verified quickstart, a corrected tool list (74 tools across 16 domains, replacing the stale "~55 tools across 11 domains" count and adding the previously undocumented album-flow, memory-flow, duplicate-flow, trash, and jobs domains), and "Why not the other options?" and "What immich-mcp is not" sections.
 - Added maintainer health files: `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, GitHub issue templates (`bug.yml`, `feature.yml`, `config.yml`), and a pull request template.
