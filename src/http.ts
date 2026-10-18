@@ -79,7 +79,12 @@ export async function createHttpServer(): Promise<HttpServerHandle> {
   const env = process.env;
   const token = env.IMMICH_MCP_HTTP_TOKEN;
   if (!token?.trim()) throw new Error("IMMICH_MCP_HTTP_TOKEN is required and must not be blank");
-  const cfg = Object.freeze({ ...getConfig(), localFileAccess: false });
+  const localFiles = env.IMMICH_MCP_HTTP_LOCAL_FILES ?? "false";
+  if (localFiles !== "true" && localFiles !== "false") {
+    throw new Error("IMMICH_MCP_HTTP_LOCAL_FILES must be true or false");
+  }
+  // Uploads and CSV exports touch host files, so HTTP mode needs an explicit opt-in.
+  const cfg = Object.freeze({ ...getConfig(), localFileAccess: localFiles === "true" });
   const url = new URL(cfg.baseUrl);
   const credentials = [cfg.apiKey, decodeURIComponent(url.username), decodeURIComponent(url.password)];
   if (credentials.some((credential) => credential && equalSecret(token, credential))) {

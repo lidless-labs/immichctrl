@@ -94,6 +94,7 @@ compares SHA-256 digests in constant time.
 - `IMMICH_MCP_HTTP_TOKEN`: required bearer token.
 - `IMMICH_MCP_HTTP_HOST`: defaults to IPv4 loopback.
 - `IMMICH_MCP_HTTP_PORT`: defaults to `3112`. Use `0` to select a free port.
+- `IMMICH_MCP_HTTP_LOCAL_FILES`: `false` by default. HTTP mode then refuses `immich_upload_asset_from_path` and CSV `exportTo`. Set `true` only when every client holding the token may read and write files as the server user. Upload paths stay confined to `IMMICH_UPLOAD_BASE_DIR`.
 
 `/mcp` supports Streamable HTTP POST, GET, and DELETE with authentication on every
 request. `GET /healthz` returns only `{"status":"ok"}` without authentication.

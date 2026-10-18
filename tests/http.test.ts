@@ -1,3 +1,6 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { request } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -200,6 +203,24 @@ describe("authenticated Streamable HTTP", () => {
     expect(audit.isError).toBe(true);
     expect(JSON.stringify(audit.content)).toContain("Local filesystem access is disabled over HTTP");
     expect(sdkCalls.some((c) => c.fn === "uploadAsset")).toBe(false);
+  });
+
+  it("allows host filesystem exports when IMMICH_MCP_HTTP_LOCAL_FILES=true", async () => {
+    const url = await start({ IMMICH_ALLOW_WRITES: "true", IMMICH_MCP_HTTP_LOCAL_FILES: "true" });
+    const { client } = await connect(url);
+    mockSdkResponse("searchAssets", { assets: { items: [] } });
+    const dir = await mkdtemp(join(tmpdir(), "immich-http-"));
+    try {
+      const audit = await client.callTool({ name: "immich_audit_trash", arguments: { exportTo: join(dir, "audit.csv") } });
+      expect(JSON.stringify(audit.content)).not.toContain("Local filesystem access is disabled over HTTP");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a malformed IMMICH_MCP_HTTP_LOCAL_FILES value", async () => {
+    configure({ IMMICH_MCP_HTTP_TOKEN: TOKEN, IMMICH_MCP_HTTP_LOCAL_FILES: "yes" });
+    await expect(createHttpServer()).rejects.toThrow(/IMMICH_MCP_HTTP_LOCAL_FILES/);
   });
 
   it("caps live sessions and recovers capacity after DELETE", async () => {
