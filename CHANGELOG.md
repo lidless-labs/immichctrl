@@ -7,8 +7,13 @@ All notable changes to this project will be documented in this file. Format foll
 ### Added
 - Authenticated Streamable HTTP mode on `/mcp` with per-session MCP servers, bounded sessions and request bodies, idle expiry, and graceful shutdown. Start with `node dist/index.js --http` or `immichctrl mcp --http`. The default port is `3112`.
 - Claude Code and Codex HTTP configuration examples and a hardened example systemd user service.
+- `IMMICH_CA_CERT` option: path to a PEM CA bundle trusted for Immich requests (added to the system roots), so self-signed setups can keep verification on.
+
+### Fixed
+- `IMMICH_VERIFY_SSL=false` no longer sets `NODE_TLS_REJECT_UNAUTHORIZED=0`, which disabled certificate checks for every connection in the process. The opt-out now installs a dedicated HTTPS agent for Immich requests only and logs a one-time warning.
 
 ### Security
+- Certificate verification is on by default, and no code path changes TLS verification process-wide.
 - HTTP requires an independent bearer token and rejects invalid Host and Origin headers before authentication. Host filesystem uploads and CSV exports are disabled over HTTP, even when Immich writes are enabled. Stdio keeps its existing behavior.
 
 ### Docs

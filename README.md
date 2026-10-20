@@ -327,7 +327,8 @@ Set these environment variables in your shell or MCP client config:
 | `IMMICH_MCP_HTTP_TOKEN` | HTTP only | - | Independent bearer credential, at least 32 characters. |
 | `IMMICH_MCP_HTTP_HOST` | no | IPv4 loopback | Listener bind address. Wildcards (`0.0.0.0`, `::`, `[::]`) are refused. |
 | `IMMICH_ALLOW_WRITES` | no | `false` | Set to `true` to expose write and delete tools. Reads always work. |
-| `IMMICH_VERIFY_SSL` | no | `true` | Set to `false` to accept self-signed certs. The relaxed TLS check is scoped to the Immich client only (a dedicated request dispatcher); it does **not** disable certificate validation process-wide. |
+| `IMMICH_VERIFY_SSL` | no | `true` | Set to `false` to skip certificate verification for Immich requests. This is a last resort: it applies only to the Immich client (a dedicated HTTPS agent) and never sets `NODE_TLS_REJECT_UNAUTHORIZED` or weakens any other connection in the process. A one-time warning is logged to stderr when it is used. Prefer `IMMICH_CA_CERT`. |
+| `IMMICH_CA_CERT` | no | - | Path to a PEM file containing the CA (or self-signed server certificate) to trust for Immich requests, in addition to the system roots. Verification stays on. The file is read at startup, and startup fails if it is missing or not PEM. |
 | `IMMICH_UPLOAD_BASE_DIR` | no | - | Absolute directory that `immich_upload_asset_from_path` is confined to. When unset, path-based upload is refused. The directory must exist at startup. Files must resolve (after following symlinks) inside this directory and must be regular files. Path uploads currently require Linux with `/proc/self/fd` to verify the opened file remains inside the directory. Other platforms refuse path uploads rather than relying on pathname checks that can race. |
 
 ### Getting an API key
@@ -395,7 +396,7 @@ Calls `immich_search_then_album` to search and create the album in one writes-ga
 - **Destructive calls require an explicit `confirm: true`.** Bulk updates, permanent deletes, merges, emptying trash, and similar refuse to run otherwise, even with writes enabled.
 - **Dry-run by default for dedupe.** Resolution tools report what they would do before they touch anything.
 - **Path-based upload is confined.** `immich_upload_asset_from_path` only reads inside `IMMICH_UPLOAD_BASE_DIR` (after resolving symlinks), and is refused entirely when that variable is unset.
-- **Relaxed TLS is scoped.** `IMMICH_VERIFY_SSL=false` only relaxes the Immich client's dispatcher; it does not weaken certificate validation for the rest of the process.
+- **TLS verification is on by default and never relaxed process-wide.** `IMMICH_CA_CERT` adds a trusted CA for Immich requests. `IMMICH_VERIFY_SSL=false` skips verification for the Immich client's own HTTPS agent only, logs a warning, and does not weaken certificate validation for the rest of the process.
 
 ## Why not the other options?
 
