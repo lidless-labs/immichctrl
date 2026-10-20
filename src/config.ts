@@ -7,6 +7,8 @@ export interface Config {
   apiKey: string;
   allowWrites: boolean;
   verifySsl: boolean;
+  /** Optional PEM CA bundle (IMMICH_CA_CERT) trusted for Immich requests in addition to the default trust store. */
+  caCertPath?: string;
   /** HTTP sessions cannot read or write host files. Undefined preserves stdio. */
   localFileAccess?: boolean;
   /** Canonical absolute upload directory, resolved at startup. Unset denies uploads. */
@@ -75,11 +77,14 @@ export function getConfig(): Config {
     }
   }
 
+  const caCertPath = env.get("IMMICH_CA_CERT") || undefined;
+
   return {
     baseUrl,
     apiKey,
     uploadBaseDir,
     allowWrites: boolWithFallback(env, "IMMICH_ALLOW_WRITES", false),
     verifySsl: boolWithFallback(env, "IMMICH_VERIFY_SSL", true),
+    ...(caCertPath ? { caCertPath } : {}),
   };
 }

@@ -27,6 +27,16 @@ describe("getConfig", () => {
     expect(cfg.verifySsl).toBe(true);
   });
 
+  it("reads IMMICH_CA_CERT and leaves it unset by default", async () => {
+    process.env.IMMICH_BASE_URL = "https://photos.example.com/api";
+    process.env.IMMICH_API_KEY = "test-key";
+    delete process.env.IMMICH_CA_CERT;
+    const { getConfig } = await import("../src/config.js");
+    expect(getConfig().caCertPath).toBeUndefined();
+    process.env.IMMICH_CA_CERT = "/etc/immich/ca.pem";
+    expect(getConfig().caCertPath).toBe("/etc/immich/ca.pem");
+  });
+
   it("throws when IMMICH_BASE_URL is missing", async () => {
     delete process.env.IMMICH_BASE_URL;
     process.env.IMMICH_API_KEY = "test-key";

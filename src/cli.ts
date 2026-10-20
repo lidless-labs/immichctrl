@@ -134,7 +134,8 @@ search smart options:
 Environment:
   IMMICH_BASE_URL            Immich API base URL (e.g. https://photos.example.com/api)
   IMMICH_API_KEY             Immich API key
-  IMMICH_VERIFY_SSL          Set false/0 to skip TLS verification (default true)`;
+  IMMICH_VERIFY_SSL          Set false/0 to skip TLS verification for Immich requests only (default true)
+  IMMICH_CA_CERT             Path to a PEM CA bundle to trust for Immich requests (self-signed servers)`;
 
 function takeFlag(args: string[], name: string): boolean {
   const i = args.indexOf(name);
