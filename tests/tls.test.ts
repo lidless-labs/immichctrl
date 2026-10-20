@@ -1,4 +1,6 @@
 import { EventEmitter } from "node:events";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import type https from "node:https";
 import { Readable } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -95,7 +97,8 @@ describe("TLS policy", () => {
     const fakeHttps = vi.fn((url: URL, opts: Record<string, unknown>, cb: (res: unknown) => void) => {
       seen.url = url.toString();
       seen.opts = opts;
-      const req = new EventEmitter() as EventEmitter & { end: (b?: Buffer) => void };
+      const req = new EventEmitter() as EventEmitter & { end: (b?: Buffer) => void; setTimeout: () => void };
+      req.setTimeout = () => undefined;
       req.end = (b?: Buffer) => {
         seen.body = b;
         const res = Object.assign(Readable.from([Buffer.from('{"ok":true}')]), {
@@ -125,7 +128,8 @@ describe("TLS policy", () => {
     let opts: Record<string, unknown> | undefined;
     const fakeHttp = vi.fn((_url: URL, o: Record<string, unknown>, cb: (res: unknown) => void) => {
       opts = o;
-      const req = new EventEmitter() as EventEmitter & { end: () => void };
+      const req = new EventEmitter() as EventEmitter & { end: () => void; setTimeout: () => void };
+      req.setTimeout = () => undefined;
       req.end = () => cb(Object.assign(Readable.from([]), { statusCode: 204, headers: {} }));
       return req;
     });
@@ -133,5 +137,36 @@ describe("TLS policy", () => {
     const res = await scoped("http://192.0.2.10:2283/api/server/ping");
     expect(opts && "agent" in opts).toBe(false);
     expect(res.status).toBe(204);
+  });
+
+  describe("against a server that never responds", () => {
+    let server: http.Server;
+    let url: string;
+
+    beforeEach(async () => {
+      server = http.createServer(() => {
+        // Accept the request and never answer.
+      });
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+      url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/server/ping`;
+    });
+
+    afterEach(async () => {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    });
+
+    it("rejects once the injected timeout elapses instead of hanging", async () => {
+      const scoped = createScopedFetch({} as https.Agent, undefined, 150);
+      await expect(scoped(url)).rejects.toThrow(/Immich request timed out/);
+    });
+
+    it("rejects when the caller's AbortSignal fires", async () => {
+      const scoped = createScopedFetch({} as https.Agent, undefined, 60_000);
+      const controller = new AbortController();
+      const pending = scoped(url, { signal: controller.signal });
+      setTimeout(() => controller.abort(), 50);
+      await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    });
   });
 });

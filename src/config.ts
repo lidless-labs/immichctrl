@@ -7,7 +7,7 @@ export interface Config {
   apiKey: string;
   allowWrites: boolean;
   verifySsl: boolean;
-  /** Optional PEM CA bundle (IMMICH_CA_CERT) trusted for Immich requests in addition to system roots. */
+  /** Optional PEM CA bundle (IMMICH_CA_CERT) trusted for Immich requests in addition to the default trust store. */
   caCertPath?: string;
   /** HTTP sessions cannot read or write host files. Undefined preserves stdio. */
   localFileAccess?: boolean;

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import http from "node:http";
 import https from "node:https";
 import { Readable } from "node:stream";
-import { rootCertificates } from "node:tls";
+import tls from "node:tls";
 import { defaults } from "@immich/sdk";
 import type { Config } from "./config.js";
 
@@ -45,6 +45,11 @@ const defaultDeps: TlsDeps = {
   },
 };
 
+function defaultRoots(): readonly string[] {
+  const getCACertificates = (tls as { getCACertificates?: (type?: string) => string[] }).getCACertificates;
+  return typeof getCACertificates === "function" ? getCACertificates("default") : tls.rootCertificates;
+}
+
 /**
  * Compute the agent options for a config, or undefined when the default
  * (system trust store, verification on) applies and no custom fetch is needed.
@@ -66,8 +71,11 @@ export function resolveTlsOptions(
       throw new Error(`IMMICH_CA_CERT does not contain a PEM certificate: ${config.caCertPath}`);
     }
     // Node replaces the default roots when `ca` is set, so keep them and add the
-    // configured bundle. Public CAs keep working alongside the private one.
-    ca = [...rootCertificates, pem];
+    // configured bundle. getCACertificates("default") (Node 22.15+/23.9+) returns
+    // the bundled Mozilla roots plus NODE_EXTRA_CA_CERTS (and the system store when
+    // --use-system-ca is set). Older Node falls back to the bundled Mozilla roots
+    // only, which excludes NODE_EXTRA_CA_CERTS.
+    ca = [...defaultRoots(), pem];
   }
 
   if (!config.verifySsl) {
@@ -84,9 +92,14 @@ export function resolveTlsOptions(
   return ca ? { rejectUnauthorized: true, ca } : undefined;
 }
 
+/** Matches native fetch's ~300s socket timeout. */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 300_000;
+
 /**
  * Build a fetch implementation bound to one https.Agent. Plain http URLs use the
  * default http agent. Redirects are returned to the caller rather than followed.
+ * Requests abort when the caller's AbortSignal fires (via `signal`) and after
+ * `timeoutMs` of socket inactivity.
  */
 export function createScopedFetch(
   agent: https.Agent,
@@ -94,11 +107,13 @@ export function createScopedFetch(
     http: http.request,
     https: https.request,
   },
+  timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS,
 ): typeof fetch {
   return async (input, init) => {
     const request = new Request(input as RequestInfo, init);
     const url = new URL(request.url);
     const isHttps = url.protocol === "https:";
+    // Request bodies are buffered fully in memory before sending (uploads included).
     const body = request.body === null ? undefined : Buffer.from(await request.arrayBuffer());
 
     const headers: Record<string, string> = {};
@@ -138,6 +153,7 @@ export function createScopedFetch(
           );
         },
       );
+      req.setTimeout(timeoutMs, () => req.destroy(new Error("Immich request timed out")));
       req.on("error", reject);
       req.end(body);
     });
