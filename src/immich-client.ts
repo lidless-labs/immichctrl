@@ -30,6 +30,7 @@ import {
 } from "@immich/sdk";
 import { init } from "@immich/sdk";
 import type { Config } from "./config.js";
+import { applyTlsPolicy } from "./tls.js";
 
 /**
  * Read-only Immich client for the CLI. Every method below maps to a GET-style
@@ -40,9 +41,7 @@ import type { Config } from "./config.js";
  */
 export class ImmichClient {
   constructor(config: Config) {
-    if (!config.verifySsl) {
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-    }
+    applyTlsPolicy(config);
     init({ baseUrl: config.baseUrl, apiKey: config.apiKey });
   }
 

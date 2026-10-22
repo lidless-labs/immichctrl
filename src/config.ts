@@ -1,3 +1,5 @@
+import { realpathSync, statSync } from "node:fs";
+import { isAbsolute } from "node:path";
 import { fromProcessEnv, type EnvReader } from "@lidless-labs/effect-operator-kit";
 
 export interface Config {
@@ -5,6 +7,12 @@ export interface Config {
   apiKey: string;
   allowWrites: boolean;
   verifySsl: boolean;
+  /** Optional PEM CA bundle (IMMICH_CA_CERT) trusted for Immich requests in addition to the default trust store. */
+  caCertPath?: string;
+  /** HTTP sessions cannot read or write host files. Undefined preserves stdio. */
+  localFileAccess?: boolean;
+  /** Canonical absolute upload directory, resolved at startup. Unset denies uploads. */
+  uploadBaseDir?: string;
 }
 
 /**
@@ -80,10 +88,28 @@ export function getConfig(): Config {
 
   const apiKey = requiredEnvString(env, "IMMICH_API_KEY", "IMMICH_API_KEY is required");
 
+  const uploadRoot = env.get("IMMICH_UPLOAD_BASE_DIR");
+  let uploadBaseDir: string | undefined;
+  if (uploadRoot) {
+    if (!isAbsolute(uploadRoot)) {
+      throw new Error("IMMICH_UPLOAD_BASE_DIR must be an absolute path");
+    }
+    try {
+      uploadBaseDir = realpathSync(uploadRoot);
+      if (!statSync(uploadBaseDir).isDirectory()) throw new Error("not a directory");
+    } catch {
+      throw new Error("IMMICH_UPLOAD_BASE_DIR must resolve to an existing directory");
+    }
+  }
+
+  const caCertPath = env.get("IMMICH_CA_CERT") || undefined;
+
   return {
     baseUrl: normalizeBaseUrl(baseUrl),
     apiKey,
+    uploadBaseDir,
     allowWrites: boolWithFallback(env, "IMMICH_ALLOW_WRITES", false),
     verifySsl: boolWithFallback(env, "IMMICH_VERIFY_SSL", true),
+    ...(caCertPath ? { caCertPath } : {}),
   };
 }

@@ -10,7 +10,7 @@ export class UsageError extends Error {}
 export type Parsed =
   | { kind: "help" }
   | { kind: "version" }
-  | { kind: "mcp" }
+  | { kind: "mcp"; http?: boolean }
   | { kind: "ping"; json: boolean }
   | { kind: "server-info"; json: boolean }
   | { kind: "server-version"; json: boolean }
@@ -92,7 +92,7 @@ Search (read-only):
 
 Other:
   help                       Show this help
-  mcp                        Start the MCP server over stdio
+  mcp [--http]               Start the MCP server over stdio or HTTP
 
 Global options:
   --json                     Emit raw JSON instead of human-readable text
@@ -134,7 +134,8 @@ search smart options:
 Environment:
   IMMICH_BASE_URL            Immich API base URL (e.g. https://photos.example.com/api)
   IMMICH_API_KEY             Immich API key
-  IMMICH_VERIFY_SSL          Set false/0 to skip TLS verification (default true)`;
+  IMMICH_VERIFY_SSL          Set false/0 to skip TLS verification for Immich requests only (default true)
+  IMMICH_CA_CERT             Path to a PEM CA bundle to trust for Immich requests (self-signed servers)`;
 
 function takeFlag(args: string[], name: string): boolean {
   const i = args.indexOf(name);
@@ -196,8 +197,9 @@ export function parseArgs(argv: string[]): Parsed {
   const cmd = args.shift();
   if (!cmd || cmd === "help") return { kind: "help" };
   if (cmd === "mcp") {
+    const http = takeFlag(args, "--http");
     ensureNoExtra(args);
-    return { kind: "mcp" };
+    return http ? { kind: "mcp", http: true } : { kind: "mcp" };
   }
 
   const json = takeFlag(args, "--json");
@@ -510,7 +512,7 @@ export interface CliDeps {
   out: (s: string) => void;
   err: (s: string) => void;
   makeClient: () => ImmichClient;
-  serve: () => Promise<void>;
+  serve: (http?: boolean) => Promise<void>;
 }
 
 export async function run(argv: string[], deps: CliDeps): Promise<number> {
@@ -533,7 +535,8 @@ export async function run(argv: string[], deps: CliDeps): Promise<number> {
     return 0;
   }
   if (parsed.kind === "mcp") {
-    await deps.serve();
+    if (parsed.http) await deps.serve(true);
+    else await deps.serve();
     return 0;
   }
 
@@ -688,9 +691,9 @@ if (isEntrypoint) {
     out: (s) => process.stdout.write(`${s}\n`),
     err: (s) => process.stderr.write(`${s}\n`),
     makeClient: () => new ImmichClient(getConfig()),
-    serve: async () => {
-      const { serve } = await import("./index.js");
-      await serve();
+    serve: async (http) => {
+      const { serve } = await import("./mcp.js");
+      await serve(http);
     },
   })
     .then((code) => {

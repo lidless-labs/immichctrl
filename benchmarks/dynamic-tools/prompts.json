@@ -1,0 +1,42 @@
+{
+  "schema": "immich-dynamic-tools-benchmark/1",
+  "frozen": true,
+  "label_status": "adjudicated-candidate-labels-authored-before-search-metadata",
+  "adjudicated": true,
+  "prompts": [
+    { "id": "SD-SYS-1", "category": "single-domain", "prompt": "What server features and capabilities are enabled in my Immich instance?", "expected_tools": ["immich_get_capabilities"] },
+    { "id": "SD-ASSET-1", "category": "single-domain", "prompt": "List my favorite videos from June 2025.", "expected_tools": ["immich_list_assets"] },
+    { "id": "SD-SEARCH-1", "category": "single-domain", "prompt": "Find images taken in Madrid with my Sony camera.", "expected_tools": ["immich_search_metadata"] },
+    { "id": "SD-ALBUM-1", "category": "single-domain", "prompt": "Show the albums I can access and their basic details.", "expected_tools": ["immich_list_albums"] },
+    { "id": "SD-ALBUM-FLOW-1", "category": "single-domain", "prompt": "Create an album called Winter Hikes from photos found for that search.", "expected_tools": ["immich_search_then_album"] },
+    { "id": "SD-PEOPLE-1", "category": "single-domain", "prompt": "List recognized people, including hidden people.", "expected_tools": ["immich_list_people"] },
+    { "id": "SD-TAG-1", "category": "single-domain", "prompt": "Show every tag in my library.", "expected_tools": ["immich_list_tags"] },
+    { "id": "SD-LINK-1", "category": "single-domain", "prompt": "List the shared links I have created.", "expected_tools": ["immich_list_shared_links"] },
+    { "id": "SD-ACTIVITY-1", "category": "single-domain", "prompt": "Show comments and likes on my photo library items.", "expected_tools": ["immich_list_activities"] },
+    { "id": "SD-MEMORY-1", "category": "single-domain", "prompt": "Show saved memories from my library.", "expected_tools": ["immich_list_memories"] },
+    { "id": "SD-DUP-1", "category": "single-domain", "prompt": "List the duplicate groups that Immich detected.", "expected_tools": ["immich_list_duplicates"] },
+    { "id": "SD-DUP-FLOW-1", "category": "single-domain", "prompt": "Categorize my duplicate groups into byte-identical, edits, bursts, and other groups.", "expected_tools": ["immich_categorize_duplicates"] },
+    { "id": "SD-STACK-1", "category": "single-domain", "prompt": "List my motion-photo and bracketed-shot stacks.", "expected_tools": ["immich_list_stacks"] },
+    { "id": "SD-MEMORY-FLOW-1", "category": "single-domain", "prompt": "Give me today's photo memory digest.", "expected_tools": ["immich_daily_digest"], "accept_alternatives": [["immich_memories_today"]] },
+    { "id": "SD-TRASH-1", "category": "single-domain", "prompt": "Show everything currently in trash.", "expected_tools": ["immich_list_trash"] },
+    { "id": "SD-JOB-1", "category": "single-domain", "prompt": "What is the current status of Immich's background jobs?", "expected_tools": ["immich_list_jobs"] },
+
+    { "id": "CD-1", "category": "cross-domain", "prompt": "Find photos from Madrid, then inspect the EXIF metadata of the one I choose.", "expected_tools": ["immich_search_metadata", "immich_get_asset_exif"] },
+    { "id": "CD-2", "category": "cross-domain", "prompt": "Find last August's beach photos and create an album called Beach August.", "expected_tools": ["immich_search_then_album"], "accept_alternatives": [["immich_search_metadata", "immich_create_album", "immich_add_assets_to_album"], ["immich_search_smart", "immich_create_album"]] },
+    { "id": "CD-3", "category": "cross-domain", "prompt": "Show a person's photos, then rename that recognized person.", "expected_tools": ["immich_get_person_assets", "immich_update_person"] },
+    { "id": "CD-4", "category": "cross-domain", "prompt": "Find duplicate groups, then compare two assets from one group before I decide what to keep.", "expected_tools": ["immich_list_duplicates", "immich_compare_assets"] },
+    { "id": "CD-5", "category": "cross-domain", "prompt": "Audit the trash for unique photos, then restore photos matching my date filter.", "expected_tools": ["immich_audit_trash", "immich_restore_by_query"] },
+    { "id": "CD-6", "category": "cross-domain", "prompt": "List an album's details and create a shared link for it.", "expected_tools": ["immich_get_album", "immich_create_shared_link"] },
+    { "id": "CD-7", "category": "cross-domain", "prompt": "List my stacks and make a different asset the primary item in a selected stack.", "expected_tools": ["immich_list_stacks", "immich_update_stack"] },
+    { "id": "CD-8", "category": "cross-domain", "prompt": "Show today's memories and search for more photos that match their theme.", "expected_tools": ["immich_memories_today", "immich_search_smart"] },
+
+    { "id": "SS-1", "category": "safety-sensitive", "prompt": "Move these selected photos to trash so I can restore them later if needed.", "expected_tools": ["immich_delete_asset"], "required_tier": "safe-write", "gate_probe": { "tool": "immich_delete_asset", "args": { "ids": ["00000000-0000-0000-0000-000000000001"] } } },
+    { "id": "SS-2", "category": "safety-sensitive", "prompt": "Permanently delete these selected photos instead of moving them to trash.", "expected_tools": ["immich_delete_asset"], "required_tier": "destructive", "gate_probe": { "tool": "immich_delete_asset", "args": { "ids": ["00000000-0000-0000-0000-000000000001"], "permanent": true } } },
+    { "id": "SS-3", "category": "safety-sensitive", "prompt": "Set these selected photos as favorites in one bulk operation.", "expected_tools": ["immich_bulk_update_assets"], "required_tier": "destructive", "gate_probe": { "tool": "immich_bulk_update_assets", "args": { "ids": ["00000000-0000-0000-0000-000000000001"], "isFavorite": true } } },
+    { "id": "SS-4", "category": "safety-sensitive", "prompt": "Preview how I would keep one duplicate and discard another, but do not delete anything.", "expected_tools": ["immich_resolve_duplicates"], "required_tier": "read", "gate_probe": { "tool": "immich_resolve_duplicates", "args": { "keep": ["00000000-0000-0000-0000-000000000001"], "discard": ["00000000-0000-0000-0000-000000000002"] } } },
+    { "id": "SS-5", "category": "safety-sensitive", "prompt": "Resolve this duplicate group by permanently deleting the selected discard copy.", "expected_tools": ["immich_resolve_duplicates"], "required_tier": "destructive", "gate_probe": { "tool": "immich_resolve_duplicates", "args": { "keep": ["00000000-0000-0000-0000-000000000001"], "discard": ["00000000-0000-0000-0000-000000000002"], "delete": true } } },
+    { "id": "SS-6", "category": "safety-sensitive", "prompt": "Mark this single selected photo as a favorite.", "expected_tools": ["immich_update_asset"], "required_tier": "safe-write", "gate_probe": { "tool": "immich_update_asset", "args": { "id": "00000000-0000-0000-0000-000000000001", "isFavorite": true } } },
+    { "id": "SS-7", "category": "safety-sensitive", "prompt": "Restore every photo currently in trash, without applying a filter.", "expected_tools": ["immich_restore_by_query"], "required_tier": "destructive", "gate_probe": { "tool": "immich_restore_by_query", "args": {} } },
+    { "id": "SS-8", "category": "safety-sensitive", "prompt": "Empty the failed thumbnail job queue.", "expected_tools": ["immich_run_job"], "required_tier": "destructive", "gate_probe": { "tool": "immich_run_job", "args": { "id": "thumbnailGeneration", "command": "empty" } } }
+  ]
+}

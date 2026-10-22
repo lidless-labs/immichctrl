@@ -1,3 +1,3 @@
-import { reportMcpFatalError, serve } from "./index.js";
+import { reportMcpFatalError, serve } from "./mcp.js";
 
-serve().catch(reportMcpFatalError);
+serve(process.argv.includes("--http")).catch(reportMcpFatalError);
