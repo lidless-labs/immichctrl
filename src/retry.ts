@@ -1,4 +1,5 @@
 import { Cause, Effect, Exit } from "effect";
+import { redact } from "./security.js";
 import {
   exponentialRetry,
   withRetry as withKitRetry,
@@ -39,7 +40,7 @@ export async function withRetry<T>(label: string, fn: () => Promise<T>): Promise
 
         const msg = e instanceof Error ? e.message : String(e);
         console.error(
-          `[immich-mcp] retry ${currentAttempt + 1}/${BACKOFF_MS.length} for ${label}: ${msg}`,
+          `[immich-mcp] retry ${currentAttempt + 1}/${BACKOFF_MS.length} for ${label}: ${redact(msg)}`,
         );
         const wait = jitter(BACKOFF_MS[currentAttempt]!);
         await new Promise((resolve) => setTimeout(resolve, wait));

@@ -521,7 +521,7 @@ export async function run(argv: string[], deps: CliDeps): Promise<number> {
   try {
     parsed = parseArgs(argv);
   } catch (error) {
-    deps.err(operatorErrorMessage(error));
+    deps.err(redact(operatorErrorMessage(error)));
     deps.err("");
     deps.err(HELP);
     return 2;

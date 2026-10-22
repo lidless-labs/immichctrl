@@ -7,6 +7,7 @@ import { initImmichClient } from "../src/client.js";
 import type { ImmichClient } from "../src/immich-client.js";
 import { _resetForTests, redact, registerSecret } from "../src/security.js";
 import { createMcpServer } from "../src/server.js";
+import { withRetry } from "../src/retry.js";
 import { asMcpError } from "../src/tools/_util.js";
 
 // Assembled at runtime so the fixture is not a secret-shaped literal.
@@ -107,5 +108,43 @@ describe("credentials in IMMICH_BASE_URL", () => {
     expect(text).not.toContain(URL_PASSWORD);
     expect(text).not.toContain(SECRET);
     expect(text).toContain("[REDACTED]");
+  });
+});
+
+describe("other output paths", () => {
+  beforeEach(() => {
+    _resetForTests();
+    registerSecret(SECRET);
+  });
+
+  it("redacts the retry diagnostic written to stderr", async () => {
+    vi.useFakeTimers();
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const failure = Object.assign(new Error(`upstream 503 for ${SECRET} at http://usr:hunter2hunter2@photos.invalid`), { status: 503 });
+      const fn = vi.fn().mockRejectedValueOnce(failure).mockResolvedValueOnce("ok");
+      const pending = withRetry("album", fn);
+      await vi.runAllTimersAsync();
+      await expect(pending).resolves.toBe("ok");
+      const logged = errSpy.mock.calls.map((call) => String(call[0])).join("\n");
+      expect(logged).toContain("retry 1/3 for album");
+      expect(logged).not.toContain(SECRET);
+      expect(logged).not.toContain("hunter2hunter2");
+    } finally {
+      errSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("redacts the argument parse error", async () => {
+    const err: string[] = [];
+    const code = await run(["http://usr:hunter2hunter2@photos.invalid/x"], {
+      out: () => undefined,
+      err: (line) => err.push(line),
+      makeClient: () => ({}) as unknown as ImmichClient,
+      serve: async () => undefined,
+    });
+    expect(code).toBe(2);
+    expect(err.join("\n")).not.toContain("hunter2hunter2");
   });
 });
