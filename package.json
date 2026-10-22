@@ -52,7 +52,7 @@
   ],
   "dependencies": {
     "@immich/sdk": "^2.7.5",
-    "@lidless-labs/effect-operator-kit": "github:lidless-labs/effect-operator-kit#be71030",
+    "@lidless-labs/effect-operator-kit": "github:lidless-labs/effect-operator-kit#1505318b2625fc273c51018389e2c61677e073d7",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "effect": "^3.21.4",
     "zod": "^3.23.0"

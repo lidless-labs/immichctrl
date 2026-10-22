@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. Format foll
 
 ## [Unreleased]
 
+### Changed
+- Bumped `@lidless-labs/effect-operator-kit` to `1505318b2625fc273c51018389e2c61677e073d7`. Tool results, including error results, are now capped at 90,000 UTF-8 bytes. An oversize result is cut with a `[truncated: output was N bytes, limit is M bytes ...]` marker and carries `structuredContent: { truncated: true, ... }`. Results under the cap keep the existing content-only, 2-space JSON shape.
+- Tool annotations are now built with the kit's `annotationsForTier`. Reads and destructive tools keep their meaning; each hint is now explicit (`destructiveHint: false` on reads, plus `idempotentHint` and `openWorldHint` on every tool). Safe writes keep `destructiveHint: false`. An unknown tier now resolves to destructive.
+
 ### Added
 - Authenticated Streamable HTTP mode on `/mcp` with per-session MCP servers, bounded sessions and request bodies, idle expiry, and graceful shutdown. Start with `node dist/index.js --http` or `immichctrl mcp --http`. The default port is `3112`.
 - Claude Code and Codex HTTP configuration examples and a hardened example systemd user service.

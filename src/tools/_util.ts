@@ -1,4 +1,4 @@
-import { ok, fail, refuseUnconfirmed } from "@lidless-labs/effect-operator-kit";
+import { boundResult, fail, refuseUnconfirmed } from "@lidless-labs/effect-operator-kit";
 import type { Config } from "../config.js";
 
 export class WriteDisabledError extends Error {
@@ -46,15 +46,25 @@ export function surfaceError(err: unknown): string {
   return `Immich API ${status}: ${msg}`;
 }
 
+// A type alias, not an interface, so it stays assignable to the MCP SDK's open result type.
+export type McpJsonResponse = {
+  content: Array<{ type: "text"; text: string }>;
+  structuredContent?: Record<string, unknown>;
+};
+
 /**
- * Success MCP result. Delegates JSON text formatting to kit `ok`, then drops
- * kit's `details` so the observable shape stays content-only (golden contract:
- * no `details`, no `isError`).
+ * Success MCP result. Keeps the observable shape content-only with 2-space JSON
+ * (golden contract: no `details`, no `isError`, no `structuredContent`) and applies the
+ * kit's UTF-8 byte cap. An oversize payload is cut with the kit's `[truncated: ...]`
+ * marker and gains `structuredContent: { truncated: true, ... }`.
  */
-export function asMcpResponse(payload: unknown) {
-  const kit = ok(payload);
-  return { content: kit.content };
+export function asMcpResponse(payload: unknown): McpJsonResponse {
+  return boundResult<McpJsonResponse>({
+    content: [{ type: "text", text: JSON.stringify(payload, null, 2) ?? "null" }],
+  });
 }
+
+export type McpErrorResponse = McpJsonResponse & { isError: true };
 
 const CONFIRM_REFUSAL_RE =
   /^(.+) is destructive\. Pass \{ confirm: true \} in tool args to proceed\.$/;
@@ -62,20 +72,21 @@ const CONFIRM_REFUSAL_RE =
 /**
  * Error MCP result. Routes confirm-refusal messages through kit
  * `refuseUnconfirmed` and all other messages through kit `fail` for the
- * isError envelope, while pinning plain-text content.
+ * isError envelope, while pinning plain-text content. The result is capped at the
+ * kit's UTF-8 byte limit like a success result.
  *
  * Semantic wraps:
  * - kit `fail("x")` encodes text as JSON `{"error":"x"}`; this repo pins plain `x`.
  * - kit `refuseUnconfirmed(op)` uses different refusal wording; this repo pins
  *   `${op} is destructive. Pass { confirm: true } in tool args to proceed.`
  */
-export function asMcpError(message: string) {
+export function asMcpError(message: string): McpErrorResponse {
   const confirm = CONFIRM_REFUSAL_RE.exec(message);
   const kit = confirm ? refuseUnconfirmed(confirm[1]!) : fail(message);
-  return {
+  return boundResult<McpErrorResponse>({
     isError: true as const,
     content: kit.content.map((part) =>
       part.type === "text" ? { type: "text" as const, text: message } : part,
     ),
-  };
+  });
 }
