@@ -322,7 +322,7 @@ Set these environment variables in your shell or MCP client config:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `IMMICH_BASE_URL` | yes | - | Base URL of your Immich API, e.g. `https://photos.example.com/api` (or `http://192.0.2.10:2283/api` for a LAN host). |
+| `IMMICH_BASE_URL` | yes | - | Base URL of your Immich API, e.g. `https://photos.example.com/api` (or `http://192.0.2.10:2283/api` for a LAN host). A bare server origin such as `https://photos.example.com` also works: `/api` is appended when the URL does not already end with it. |
 | `IMMICH_API_KEY` | yes | - | API key from Account Settings > API Keys in the Immich web UI. |
 | `IMMICH_MCP_HTTP_TOKEN` | HTTP only | - | Independent bearer credential, at least 32 characters. |
 | `IMMICH_MCP_HTTP_HOST` | no | IPv4 loopback | Listener bind address. Wildcards (`0.0.0.0`, `::`, `[::]`) are refused. |
