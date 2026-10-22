@@ -199,6 +199,10 @@ function registerAllTools(server: McpServer, config: Config): void {
 
 const derived = deriveTiers();
 
+// Tools whose executor gate is requireWrites only, tiered destructive on purpose: they remove
+// data from albums and assets. If one later gains requireConfirm, drop it from this set.
+const TIERED_ABOVE_GATE = new Set(["immich_remove_assets_from_album", "immich_remove_tag_from_assets"]);
+
 describe("tier-registry (Immich Runbook Step 2)", () => {
   it("derives a tier for every one of the 74 server.tool handlers", () => {
     expect(derived.size).toBe(74);
@@ -206,6 +210,11 @@ describe("tier-registry (Immich Runbook Step 2)", () => {
 
   it("every derived tier matches TOOL_REGISTRY.tierFor", () => {
     for (const [name, tier] of derived) {
+      if (TIERED_ABOVE_GATE.has(name)) {
+        expect(tier, name).toBe("safe-write");
+        expect(TOOL_REGISTRY.tierFor(name), name).toBe("destructive");
+        continue;
+      }
       expect(TOOL_REGISTRY.tierFor(name), name).toBe(tier);
     }
   });

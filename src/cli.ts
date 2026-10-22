@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 import { operatorErrorMessage } from "@lidless-labs/effect-operator-kit";
 import { getConfig } from "./config.js";
 import { ImmichClient } from "./immich-client.js";
+import { redact } from "./security.js";
 import pkg from "../package.json" with { type: "json" };
 
 export class UsageError extends Error {}
@@ -667,8 +668,8 @@ export async function run(argv: string[], deps: CliDeps): Promise<number> {
       }
     }
   } catch (error) {
-    // Kit cli adapter message extraction; no repo redact layer (immich has none).
-    deps.err(operatorErrorMessage(error));
+    // Kit cli adapter message extraction, then the repo redactor (API key, URL userinfo).
+    deps.err(redact(operatorErrorMessage(error)));
     return 1;
   }
   return 0;
@@ -700,7 +701,7 @@ if (isEntrypoint) {
       process.exitCode = code;
     })
     .catch((error: unknown) => {
-      process.stderr.write(`${operatorErrorMessage(error)}\n`);
+      process.stderr.write(`${redact(operatorErrorMessage(error))}\n`);
       process.exitCode = 1;
     });
 }

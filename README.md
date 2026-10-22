@@ -242,7 +242,7 @@ Prefer a global install or a source checkout? See [Install](#install).
 - `immich_create_album`
 - `immich_update_album` - rename, set cover, set description
 - `immich_add_assets_to_album`
-- `immich_remove_assets_from_album`
+- `immich_remove_assets_from_album` *(annotated destructive; writes-gated, no `confirm` flag)*
 - `immich_delete_album` - assets are NOT deleted *(requires `confirm: true`)*
 
 ### Album flows (1)
@@ -264,7 +264,7 @@ Prefer a global install or a source checkout? See [Install](#install).
 - `immich_update_tag` - rename or recolor
 - `immich_delete_tag` *(requires `confirm: true`)*
 - `immich_add_tag_to_assets`
-- `immich_remove_tag_from_assets`
+- `immich_remove_tag_from_assets` *(annotated destructive; writes-gated, no `confirm` flag)*
 
 ### Shared links (5)
 - `immich_list_shared_links`
