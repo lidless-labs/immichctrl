@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file. Format foll
 - `IMMICH_CA_CERT` option: path to a PEM CA bundle trusted for Immich requests (added to Node's default trust store: bundled Mozilla roots plus `NODE_EXTRA_CA_CERTS` on Node 22.15+/23.9+, bundled roots only on older Node), so self-signed setups can keep verification on.
 
 ### Fixed
+- `IMMICH_BASE_URL` set to a bare server origin (for example `https://photos.example.com`) no longer produces 404s. The URL is normalized to end with `/api`, so both the origin and the `/api` form work. Contributed by @rokelvisar in #9.
 - `IMMICH_VERIFY_SSL=false` no longer sets `NODE_TLS_REJECT_UNAUTHORIZED=0`, which disabled certificate checks for every connection in the process. The opt-out now installs a dedicated HTTPS agent for Immich requests only and logs a one-time warning.
 - The scoped Immich fetch now times out after 300 seconds and honors the caller's `AbortSignal`, so a stalled server can no longer hang a request forever.
 
