@@ -1,4 +1,4 @@
-import { ok, fail, refuseUnconfirmed } from "@lidless-labs/effect-operator-kit";
+import { boundResult, fail, refuseUnconfirmed } from "@lidless-labs/effect-operator-kit";
 import type { Config } from "../config.js";
 
 export class WriteDisabledError extends Error {
@@ -46,14 +46,22 @@ export function surfaceError(err: unknown): string {
   return `Immich API ${status}: ${msg}`;
 }
 
+// A type alias, not an interface, so it stays assignable to the MCP SDK's open result type.
+export type McpJsonResponse = {
+  content: Array<{ type: "text"; text: string }>;
+  structuredContent?: Record<string, unknown>;
+};
+
 /**
- * Success MCP result. Delegates JSON text formatting to kit `ok`, then drops
- * kit's `details` so the observable shape stays content-only (golden contract:
- * no `details`, no `isError`).
+ * Success MCP result. Keeps the observable shape content-only with 2-space JSON
+ * (golden contract: no `details`, no `isError`, no `structuredContent`) and applies the
+ * kit's UTF-8 byte cap. An oversize payload is cut with the kit's `[truncated: ...]`
+ * marker and gains `structuredContent: { truncated: true, ... }`.
  */
-export function asMcpResponse(payload: unknown) {
-  const kit = ok(payload);
-  return { content: kit.content };
+export function asMcpResponse(payload: unknown): McpJsonResponse {
+  return boundResult<McpJsonResponse>({
+    content: [{ type: "text", text: JSON.stringify(payload, null, 2) ?? "null" }],
+  });
 }
 
 const CONFIRM_REFUSAL_RE =

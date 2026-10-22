@@ -15,29 +15,30 @@
 // @lidless-labs/mcp-dynamic-tools is unpublished and must not be added as a
 // dependency.
 
+import {
+  annotationsForTier as kitAnnotationsForTier,
+  type ToolAnnotations,
+} from "@lidless-labs/effect-operator-kit";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export type ToolTier = "read" | "safe-write" | "destructive";
 
-// Standard MCP tool annotations. Hints only: clients must not rely on them
-// for security. Clients implementing human-in-the-loop approval read
-// destructiveHint to decide which calls need a human, and readOnlyHint to
-// skip approval on pure reads.
-export interface ToolAnnotations {
-  readOnlyHint?: boolean;
-  destructiveHint?: boolean;
-}
-
+// Standard MCP tool annotations, built by the kit helper so every hint is
+// explicit. Hints only: clients must not rely on them for security. Clients
+// implementing human-in-the-loop approval read destructiveHint to decide which
+// calls need a human, and readOnlyHint to skip approval on pure reads.
+//
 // Projected from the tier as a pure function, so annotations can never
-// disagree with the tier.
+// disagree with the tier. A tier the switch does not know falls through to the
+// kit's fail-closed destructive annotations.
 export function annotationsForTier(tier: ToolTier): ToolAnnotations {
   switch (tier) {
     case "read":
-      return { readOnlyHint: true };
+      return kitAnnotationsForTier("read");
     case "safe-write":
-      return { readOnlyHint: false, destructiveHint: false };
-    case "destructive":
-      return { readOnlyHint: false, destructiveHint: true };
+      return kitAnnotationsForTier("additive");
+    default:
+      return kitAnnotationsForTier("destructive");
   }
 }
 
