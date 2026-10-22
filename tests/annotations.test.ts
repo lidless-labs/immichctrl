@@ -18,11 +18,17 @@ describe("kit tool annotations", () => {
     })._registeredTools;
     const byName = new Map(Object.entries(reg).map(([name, tool]) => [name, tool.annotations]));
     expect(byName.size).toBe(Object.keys(TOOL_REGISTRY.tiers).length);
-    // Untagging or removing an asset from an album changes membership only; the asset
-    // is kept, and the executor gates it with requireWrites alone (tier: safe-write).
-    assertToolAnnotations(byName, {
-      allowNonDestructive: ["immich_remove_assets_from_album", "immich_remove_tag_from_assets"],
-    });
+    assertToolAnnotations(byName);
+  });
+
+  it("marks the two remove tools destructive even though their gate is requireWrites alone", () => {
+    const server = createMcpServer(config);
+    const reg = (server as unknown as {
+      _registeredTools: Record<string, { annotations?: ToolAnnotations }>;
+    })._registeredTools;
+    for (const name of ["immich_remove_assets_from_album", "immich_remove_tag_from_assets"]) {
+      expect(reg[name]?.annotations, name).toMatchObject({ readOnlyHint: false, destructiveHint: true });
+    }
   });
 
   it("keeps the three-tier meaning: reads read-only, safe writes non-destructive, destructive fail-closed", () => {

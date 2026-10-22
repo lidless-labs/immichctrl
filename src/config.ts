@@ -1,6 +1,7 @@
 import { realpathSync, statSync } from "node:fs";
 import { isAbsolute } from "node:path";
 import { fromProcessEnv, type EnvReader } from "@lidless-labs/effect-operator-kit";
+import { registerConfigSecrets } from "./security.js";
 
 export interface Config {
   baseUrl: string;
@@ -104,7 +105,7 @@ export function getConfig(): Config {
 
   const caCertPath = env.get("IMMICH_CA_CERT") || undefined;
 
-  return {
+  const config: Config = {
     baseUrl: normalizeBaseUrl(baseUrl),
     apiKey,
     uploadBaseDir,
@@ -112,4 +113,7 @@ export function getConfig(): Config {
     verifySsl: boolWithFallback(env, "IMMICH_VERIFY_SSL", true),
     ...(caCertPath ? { caCertPath } : {}),
   };
+  // Every entry point (stdio, HTTP, CLI) loads config here, so every output path redacts these.
+  registerConfigSecrets(config);
+  return config;
 }

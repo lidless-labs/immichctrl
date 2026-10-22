@@ -1,5 +1,6 @@
 import { boundResult, fail, refuseUnconfirmed } from "@lidless-labs/effect-operator-kit";
 import type { Config } from "../config.js";
+import { redact } from "../security.js";
 
 export class WriteDisabledError extends Error {
   constructor() {
@@ -72,8 +73,9 @@ const CONFIRM_REFUSAL_RE =
 /**
  * Error MCP result. Routes confirm-refusal messages through kit
  * `refuseUnconfirmed` and all other messages through kit `fail` for the
- * isError envelope, while pinning plain-text content. The result is capped at the
- * kit's UTF-8 byte limit like a success result.
+ * isError envelope, while pinning plain-text content. The message is redacted whole
+ * first, then the result is capped at the kit's UTF-8 byte limit like a success result,
+ * so the cap can never cut a secret in half and leave a fragment redaction misses.
  *
  * Semantic wraps:
  * - kit `fail("x")` encodes text as JSON `{"error":"x"}`; this repo pins plain `x`.
@@ -86,7 +88,7 @@ export function asMcpError(message: string): McpErrorResponse {
   return boundResult<McpErrorResponse>({
     isError: true as const,
     content: kit.content.map((part) =>
-      part.type === "text" ? { type: "text" as const, text: message } : part,
+      part.type === "text" ? { type: "text" as const, text: redact(message) } : part,
     ),
   });
 }

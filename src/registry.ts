@@ -88,6 +88,10 @@ export function createToolRegistry(tiers: Record<string, ToolTier>): ToolRegistr
 //   requireConfirm  => destructive
 //   requireWrites   => safe-write (unless requireConfirm also present)
 //   neither         => read
+// `immich_remove_assets_from_album` and `immich_remove_tag_from_assets` are gated by
+// requireWrites alone but are tiered destructive: they remove data from albums and assets, so
+// clients that prompt on destructiveHint must prompt for them (see TIERED_ABOVE_GATE in
+// tests/tier-registry.test.ts).
 // `immich_delete_asset`, `immich_resolve_duplicates`, `immich_restore_by_query`,
 // `immich_run_job`, and `immich_resolve_with_keep_strategy` gate only some
 // execution paths on confirmation, but are tiered at their conservative maximum.
@@ -125,7 +129,7 @@ const IMMICH_TOOL_TIERS: Record<string, ToolTier> = {
   immich_update_album: "safe-write",
   immich_delete_album: "destructive",
   immich_add_assets_to_album: "safe-write",
-  immich_remove_assets_from_album: "safe-write",
+  immich_remove_assets_from_album: "destructive",
 
   // people.ts
   immich_list_people: "read",
@@ -143,7 +147,7 @@ const IMMICH_TOOL_TIERS: Record<string, ToolTier> = {
   immich_update_tag: "safe-write",
   immich_delete_tag: "destructive",
   immich_add_tag_to_assets: "safe-write",
-  immich_remove_tag_from_assets: "safe-write",
+  immich_remove_tag_from_assets: "destructive",
 
   // shared-links.ts
   immich_list_shared_links: "read",
