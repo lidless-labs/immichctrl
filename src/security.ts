@@ -36,6 +36,11 @@ export function registerConfigSecrets(config: { baseUrl: string; apiKey: string 
   if (url.password) registerSecret(`${url.username}:${url.password}`);
 }
 
+/** Best effort, for paths that run before getConfig(), such as CLI argument parsing. */
+export function registerEnvSecrets(env: NodeJS.ProcessEnv = process.env): void {
+  registerConfigSecrets({ baseUrl: env.IMMICH_BASE_URL ?? "", apiKey: env.IMMICH_API_KEY ?? "" });
+}
+
 export function redact(text: string): string {
   let out = text;
   // Longest first, so a secret that contains another registered secret is replaced whole.

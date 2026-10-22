@@ -140,6 +140,26 @@ describe("other output paths", () => {
     }
   });
 
+  it("redacts the configured API key from a parse error before config is loaded", async () => {
+    vi.stubEnv("IMMICH_BASE_URL", "http://photos.invalid");
+    vi.stubEnv("IMMICH_API_KEY", SECRET);
+    _resetForTests();
+    try {
+      const err: string[] = [];
+      const code = await run([SECRET], {
+        out: () => undefined,
+        err: (line) => err.push(line),
+        makeClient: () => ({}) as unknown as ImmichClient,
+        serve: async () => undefined,
+      });
+      expect(code).toBe(2);
+      expect(err.join("\n")).not.toContain(SECRET);
+      expect(err.join("\n")).toContain("[REDACTED]");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("redacts the argument parse error", async () => {
     const err: string[] = [];
     const code = await run(["http://usr:hunter2hunter2@photos.invalid/x"], {

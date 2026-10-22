@@ -3,7 +3,7 @@ import { pathToFileURL } from "node:url";
 import { operatorErrorMessage } from "@lidless-labs/effect-operator-kit";
 import { getConfig } from "./config.js";
 import { ImmichClient } from "./immich-client.js";
-import { redact } from "./security.js";
+import { redact, registerEnvSecrets } from "./security.js";
 import pkg from "../package.json" with { type: "json" };
 
 export class UsageError extends Error {}
@@ -521,6 +521,8 @@ export async function run(argv: string[], deps: CliDeps): Promise<number> {
   try {
     parsed = parseArgs(argv);
   } catch (error) {
+    // Config has not been loaded yet, so register the env secrets before redacting.
+    registerEnvSecrets();
     deps.err(redact(operatorErrorMessage(error)));
     deps.err("");
     deps.err(HELP);
