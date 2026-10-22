@@ -6,7 +6,7 @@ installFakeSdk();
 import { assertToolAnnotations, type ToolAnnotations } from "@lidless-labs/effect-operator-kit";
 import { annotationsForTier, TOOL_REGISTRY } from "../src/registry.js";
 import { createMcpServer } from "../src/server.js";
-import { asMcpResponse } from "../src/tools/_util.js";
+import { asMcpError, asMcpResponse } from "../src/tools/_util.js";
 
 const config = { baseUrl: "https://photos.example.com/api", apiKey: "k", allowWrites: true, verifySsl: true };
 
@@ -45,5 +45,18 @@ describe("asMcpResponse byte cap", () => {
     expect(result.content[0]!.text).toContain("[truncated: output was");
     expect(result.structuredContent).toMatchObject({ truncated: true, maxBytes: 90_000 });
     expect(result).not.toHaveProperty("details");
+  });
+});
+
+describe("asMcpError byte cap", () => {
+  it("keeps a short message as plain text with isError", () => {
+    expect(asMcpError("nope")).toEqual({ isError: true, content: [{ type: "text", text: "nope" }] });
+  });
+
+  it("truncates an oversize message with the kit marker and keeps isError", () => {
+    const result = asMcpError("x".repeat(200_000));
+    expect(result.isError).toBe(true);
+    expect(Buffer.byteLength(JSON.stringify(result), "utf8")).toBeLessThanOrEqual(90_000);
+    expect(result.content[0]!.text).toContain("[truncated: output was");
   });
 });

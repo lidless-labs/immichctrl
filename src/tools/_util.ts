@@ -64,26 +64,29 @@ export function asMcpResponse(payload: unknown): McpJsonResponse {
   });
 }
 
+export type McpErrorResponse = McpJsonResponse & { isError: true };
+
 const CONFIRM_REFUSAL_RE =
   /^(.+) is destructive\. Pass \{ confirm: true \} in tool args to proceed\.$/;
 
 /**
  * Error MCP result. Routes confirm-refusal messages through kit
  * `refuseUnconfirmed` and all other messages through kit `fail` for the
- * isError envelope, while pinning plain-text content.
+ * isError envelope, while pinning plain-text content. The result is capped at the
+ * kit's UTF-8 byte limit like a success result.
  *
  * Semantic wraps:
  * - kit `fail("x")` encodes text as JSON `{"error":"x"}`; this repo pins plain `x`.
  * - kit `refuseUnconfirmed(op)` uses different refusal wording; this repo pins
  *   `${op} is destructive. Pass { confirm: true } in tool args to proceed.`
  */
-export function asMcpError(message: string) {
+export function asMcpError(message: string): McpErrorResponse {
   const confirm = CONFIRM_REFUSAL_RE.exec(message);
   const kit = confirm ? refuseUnconfirmed(confirm[1]!) : fail(message);
-  return {
+  return boundResult<McpErrorResponse>({
     isError: true as const,
     content: kit.content.map((part) =>
       part.type === "text" ? { type: "text" as const, text: message } : part,
     ),
-  };
+  });
 }
