@@ -49,6 +49,10 @@ describe("redaction runs on the full value before the byte cap", () => {
     );
   });
 
+  it("masks userinfo whose password contains an @", () => {
+    expect(redact("GET http://usr:p@ss@photos.invalid/x failed")).toBe("GET http://[REDACTED]@photos.invalid/x failed");
+  });
+
   it("keeps the confirm refusal text intact", () => {
     expect(asMcpError("immich_empty_trash is destructive. Pass { confirm: true } in tool args to proceed.")).toEqual({
       isError: true,

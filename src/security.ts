@@ -8,8 +8,9 @@ const SECRETS = new Set<string>();
 // Below this a "secret" is more likely to garble ordinary words than to protect anything.
 const MIN_SECRET_LENGTH = 4;
 
-// URL userinfo (`scheme://user:pass@host`), whether or not the value was registered.
-const URL_USERINFO = /\b(https?:\/\/)[^@\s/]+@/gi;
+// URL userinfo (`scheme://user:pass@host`), whether or not the value was registered. Matches
+// through the LAST `@` of the authority, since a password may itself contain an `@`.
+const URL_USERINFO = /\b(https?:\/\/)[^\s/?#]*@/gi;
 
 export function registerSecret(value: string | undefined): void {
   if (value && value.length >= MIN_SECRET_LENGTH) SECRETS.add(value);
