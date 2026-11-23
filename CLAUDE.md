@@ -29,7 +29,9 @@ For large scoping work, invoke `ultra-work-scout` first. It is installed with th
 
 ## Git
 
-- Do not add `Co-Authored-By` or AI-attribution trailers to commits, PR bodies, or public docs.
+- Do not add `Co-Authored-By` or AI-attribution trailers to commits.
+- Keep AI-attribution trailers out of public docs.
+- Use the GitHub agent attribution block in root `AGENTS.md` for issues, pull requests, comments, and reviews written or edited on Solomon's behalf. It is the only AI-attribution block permitted in PR bodies.
 - Use conventional commits.
 - Never bypass pre-push hooks (`--no-verify`) unless the user has explicitly accepted the risk.
 - Never push to `main` directly on shared repos. Feature branch + PR.
